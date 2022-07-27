@@ -1,4 +1,4 @@
-import { Component, ElementRef, VERSION } from '@angular/core';
+import { Component, ElementRef } from '@angular/core';
 
 @Component({
   selector: 'my-app',
@@ -9,7 +9,7 @@ export class AppComponent {
   value = '';
   options = {
     canvasWidth: document.body.clientWidth || 375,
-    canvasHeight: 83,
+    canvasHeight: 400,
     boxColor: '#E4E4E4',
     scrollLeft: 0,
     heightDecimal: 35,
@@ -26,6 +26,7 @@ export class AppComponent {
     minValue: 100,
     currentValue: 160,
     el: null,
+    direction: 'vertical', //'vertical', // 'horizontal'
   };
   localState = {
     startX: 0,
@@ -51,7 +52,8 @@ export class AppComponent {
     const box = document.createElement('div');
     const canvas = document.createElement('canvas');
     this.canvas = canvas;
-    box.className = 'box'; //s.box;
+    box.className =
+      this.options.direction === 'horizontal' ? 'box' : 'box vertical'; //s.box;
     box.appendChild(canvas);
     container.appendChild(box);
   }
@@ -94,17 +96,32 @@ export class AppComponent {
     let touch = (e.touches && e.touches[0]) || e,
       deltaX = touch.pageX - this.localState.startX,
       deltaY = touch.pageY - this.localState.startY;
-    // 如果X方向上的位移大于Y方向，则认为是左右滑动
-    if (
-      Math.abs(deltaX) > Math.abs(deltaY) &&
-      Math.abs(Math.round(deltaX / this.options.divide)) > 0
-    ) {
-      if (this.isSupportTouchEvent && !this.rebound(deltaX)) {
-        return;
+    if (this.options.direction === 'horizontal') {
+      // 如果X方向上的位移大于Y方向，则认为是左右滑动
+      if (
+        Math.abs(deltaX) > Math.abs(deltaY) &&
+        Math.abs(Math.round(deltaX / this.options.divide)) > 0
+      ) {
+        if (this.isSupportTouchEvent && !this.rebound(deltaX)) {
+          return;
+        }
+        this.moveDreaw(deltaX);
+        this.localState.startX = touch.pageX;
+        this.localState.startY = touch.pageY;
       }
-      this.moveDreaw(deltaX);
-      this.localState.startX = touch.pageX;
-      this.localState.startY = touch.pageY;
+    } else {
+      // 如果X方向上的位移大于Y方向，则认为是左右滑动
+      if (
+        Math.abs(deltaX) < Math.abs(deltaY) &&
+        Math.abs(Math.round(deltaY / this.options.divide)) > 0
+      ) {
+        if (this.isSupportTouchEvent && !this.rebound(deltaY)) {
+          return;
+        }
+        this.moveDreaw(deltaY);
+        this.localState.startX = touch.pageX;
+        this.localState.startY = touch.pageY;
+      }
     }
   }
 
@@ -201,25 +218,27 @@ export class AppComponent {
     this.options.currentValue = currentValue;
     console.log('current value - ', currentValue);
     // handleValue && handleValue(currentValue);
+    const rulerRange =
+      this.options.direction === 'horizontal' ? canvasWidth : canvasHeight;
     let diffCurrentMin = ((currentValue - minValue) * divide) / precision,
       startValue =
-        currentValue - Math.floor(canvasWidth / 2 / divide) * precision;
+        currentValue - Math.floor(rulerRange / 2 / divide) * precision;
     startValue =
       startValue > minValue
         ? startValue < maxValue
           ? startValue
           : maxValue
         : minValue;
-    let endValue = startValue + (canvasWidth / divide) * precision;
+    let endValue = startValue + (rulerRange / divide) * precision;
     endValue = endValue < maxValue ? endValue : maxValue;
     // 定义原点
     let origin = {
       x:
-        diffCurrentMin > canvasWidth / 2
-          ? (canvasWidth / 2 -
+        diffCurrentMin > rulerRange / 2
+          ? (rulerRange / 2 -
               ((currentValue - startValue) * divide) / precision) *
             2
-          : (canvasWidth / 2 - diffCurrentMin) * 2,
+          : (rulerRange / 2 - diffCurrentMin) * 2,
       y: canvasHeight * 2,
     };
     // 定义刻度线样式
@@ -240,13 +259,24 @@ export class AppComponent {
       i++
     ) {
       context.beginPath();
-      // 画刻度线
-      context.moveTo(origin.x + (i - startValue / precision) * divide, 0);
-      // 画线到刻度高度，10的位数就加高
-      context.lineTo(
-        origin.x + (i - startValue / precision) * divide,
-        i % 10 === 0 ? heightDecimal : heightDigit
-      );
+      if (this.options.direction === 'horizontal') {
+        // 画刻度线
+        context.moveTo(origin.x + (i - startValue / precision) * divide, 0);
+        // 画线到刻度高度，10的位数就加高
+        context.lineTo(
+          origin.x + (i - startValue / precision) * divide,
+          i % 10 === 0 ? heightDecimal : heightDigit
+        );
+      } else {
+        // 画刻度线
+        context.moveTo(0, origin.x + (i - startValue / precision) * divide);
+        // 画线到刻度高度，10的位数就加高
+        context.lineTo(
+          i % 10 === 0 ? heightDecimal : heightDigit,
+          origin.x + (i - startValue / precision) * divide
+        );
+      }
+
       context.lineWidth = lineWidth;
       // 10的位数就加深
       context.strokeStyle = i % 10 === 0 ? colorDecimal : colorDigit;
@@ -254,14 +284,23 @@ export class AppComponent {
       // 描绘刻度值
       context.fillStyle = fontColor;
       context.textAlign = 'center';
-      context.textBaseline = 'top';
+      context.textBaseline =
+        this.options.direction === 'horizontal' ? 'top' : 'middle';
       if (i % 10 === 0) {
         context.font = `${fontSize}px Arial`;
-        context.fillText(
-          Math.round(i / 10) / (derivative / 10),
-          origin.x + (i - startValue / precision) * divide,
-          fontMarginTop
-        );
+        if (this.options.direction === 'horizontal') {
+          context.fillText(
+            Math.round(i / 10) / (derivative / 10),
+            origin.x + (i - startValue / precision) * divide,
+            fontMarginTop
+          );
+        } else {
+          context.fillText(
+            Math.round(i / 10) / (derivative / 10),
+            fontMarginTop,
+            origin.x + (i - startValue / precision) * divide
+          );
+        }
       }
       context.closePath();
     }

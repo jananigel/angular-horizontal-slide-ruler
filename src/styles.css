@@ -16,6 +16,14 @@
   background-color: #00b0ab;
 }
 
+.box.vertical:before {
+  left: 0;
+  top: 50%;
+  transform: translate(0, -50%);
+  width: 35px;
+  height: 3px;
+}
+
 .canvas {
   display: block;
   margin: 0 auto;
